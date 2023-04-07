@@ -52,6 +52,6 @@ int main(int argc,char* argv[]){
         hints.ai_family = tipoAddress[i];
         resultado(argv[1], argv[2], hints, result);
     }
-
+    
     return 0;
 }
