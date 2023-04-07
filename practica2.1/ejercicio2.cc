@@ -8,6 +8,8 @@
 #include <sys/types.h>          /* See NOTES */
 #include <sys/socket.h>
 #include <time.h>
+#include <unistd.h>
+
 
 
 int conexionUDP(const char *node, const char *service, struct addrinfo hints,
@@ -110,6 +112,6 @@ int main(int argc,char* argv[]){
         if(bytes!=0)
         sendto(socket, buf, bytes, 0, (struct sockaddr *) &cliente, cliente_len);
     }
-
+    close(socket);
     return 0;
 }
