@@ -10,6 +10,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <thread>
 
 class hijo{
      
@@ -106,18 +107,18 @@ void * conexionUDP(void *arg){
     // const char *node, const char *service, struct addrinfo hints,
     // struct addrinfo *res,int *sock
 
-    struct initInfo info = *(struct initInfo*)arg;
+    struct initInfo* info = (struct initInfo*)arg;
 
-    int s = getaddrinfo(info.node, info.service, &info.hints, &info.res);
+    int s = getaddrinfo(info->node, info->service, &(info->hints), &(info->res));
     if (s != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
     }
-    
-    (*info.sock)= socket(info.res->ai_family, info.res->ai_socktype, 0);
-    if((*info.sock)==-1){     
-        fprintf(stderr, "socket: %s\n", gai_strerror((*info.sock)));  
+
+    (*(info->sock))= socket(info->res->ai_family, info->res->ai_socktype, 0);
+    if((*(info->sock))==-1){     
+        fprintf(stderr, "socket: %s\n", gai_strerror((*(info->sock))));  
     }
-    s=bind((*info.sock), (struct sockaddr *) info.res->ai_addr, info.res->ai_addrlen);
+    s=bind((*info->sock), (struct sockaddr *) info->res->ai_addr, info->res->ai_addrlen);
         if (s != 0) {
         fprintf(stderr, "bind: %s\n", gai_strerror(s));
     }
@@ -132,13 +133,13 @@ int main(int argc,char* argv[]){
     }
 
     pthread_t init;
-    struct initInfo info;
-
-    info.node=argv[1];
-    info.service=argv[2];
+    struct initInfo* info=new initInfo();
+    
+    info->node=argv[1];
+    info->service=argv[2];
 
     struct addrinfo hints;
-    struct addrinfo *result;
+    struct addrinfo *result=new addrinfo();
 
     //flags de hint
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -146,15 +147,20 @@ int main(int argc,char* argv[]){
     hints.ai_socktype = SOCK_DGRAM; 
     hints.ai_flags = AI_PASSIVE; 
 
-    info.hints = hints;
-    info.res = result;
+    info->hints = hints;
+    info->res = result;
+    info->sock=new int();
+    //pthread_create(&init, NULL, conexionUDP, (void*)info);
 
-    pthread_create(&init, NULL, conexionUDP, (void*)info);
-
-    
+    conexionUDP((void*)info);
     for(int i = 0; i < 4; i++){
-        hijo *h = new hijo(info.sock);
-        std::thread t(h).recibeMensaje();
+        hijo *h = new hijo(*(info->sock));
+         auto thread_func = [&h]() {
+         h->recibeMensaje();
+        delete h;
+        };
+        std::thread t(thread_func);
+        t.detach();
     }
     
     char comprueba = 'o';
@@ -164,6 +170,6 @@ int main(int argc,char* argv[]){
         comprueba = buf[0];
     }
 
-    close(info.sock);
+    close(*(info->sock));
     return 0;
 }
