@@ -8,6 +8,10 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 
 
@@ -38,12 +42,11 @@ public:
     int from_bin(char * data)
     {
         char *aux = data;
-
         memcpy(&x, aux, sizeof(int16_t));
         aux+=sizeof(int16_t);
         memcpy(&y, aux, sizeof(int16_t));
         aux+=sizeof(int16_t);
-        memcpy(&name, aux, sizeof(data) - (sizeof(int16_t)*2));
+        memcpy(&name, aux, 80);
 
 
         return 0;
@@ -67,20 +70,28 @@ int main(int argc, char **argv)
     // 2. Escribir la serialización en un fichero
     int fd = open("infoJugador.txt", O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fd == -1) {
-        //printf("Error al crear el archivo");
+ 
         return 1;
     }
 
     int bytes = write(fd, one_w.data(), one_w.size());
     if (bytes == -1) {
-        //printf("Error al escribir en el archivo");
-        return 1;
+    
+        return -1;
     }
     // 3. Leer el fichero
+    
+     fd = open("infoJugador.txt", O_RDONLY);
+     if (fd == -1) {
+        fprintf(stderr, "getopen: %s\n", gai_strerror(fd));
+            exit(EXIT_FAILURE);
+        return 1;
+    }
     char buffer[2048];
-    bytes = read(fd, buffer, sizeof(buffer));
+    bytes = read(fd, buffer, 2048);
     if (bytes == -1) {
-        std::cout<<"no se pudo leer\n";
+       fprintf(stderr, "getread: %s\n", gai_strerror(bytes));
+            exit(EXIT_FAILURE);
         return 1;
     }
 
