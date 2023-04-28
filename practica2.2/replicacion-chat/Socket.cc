@@ -36,7 +36,10 @@ int Socket::recv(Serializable &obj, Socket * &sock)
 int Socket::send(Serializable& obj, const Socket& sock)
 {
     //Serializar el objeto
+    obj->to_bin()
+    
     //Enviar el objeto binario a sock usando el socket sd
+    return sendto(sd, obj->data, obj->size(), 0, (struct sockaddr *) &sock.sa, sock.sa_len);
 }
 
 bool operator== (const Socket &s1, const Socket &s2)
@@ -44,6 +47,14 @@ bool operator== (const Socket &s1, const Socket &s2)
     //Comparar los campos sin_family, sin_addr.s_addr y sin_port
     //de la estructura sockaddr_in de los Sockets s1 y s2
     //Retornar false si alguno difiere
+    sockaddr_in *socket1 = (sockaddr_in *)&(s1);
+    sockaddr_in *socket2 = (sockaddr_in *)&(s2);
+
+    return (socket1.sin_family == socket2.sin_family &&
+                    socket1.sin_addr == socket2.sin_addr &&
+                    socket1.sin_port == socket2.sin_port);
+
+    
 };
 
 std::ostream& operator<<(std::ostream& os, const Socket& s)
