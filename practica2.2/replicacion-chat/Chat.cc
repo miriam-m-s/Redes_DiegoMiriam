@@ -9,55 +9,22 @@ void ChatMessage::to_bin()
 
     memset(_data, 0, MESSAGE_SIZE);
     //Serializar los campos type, nick y message en el buffer _data
-    char *aux = _data;
-    //metemos type
-    memcpy(aux, &type, sizeof(uint8_t));
-    aux += sizeof(uint8_t);
-
-    int16_t sizenick=nick.lenght();
-    memcpy(aux, &sizenick, sizeof(int16_t));
-    aux += sizeof(int16_t);
-    //metemos nick 
-    memcpy(aux, nick.c_str(), nick.lenght()*sizeof(char));
-    aux += nick.lenght();
-
-    int16_t sizemessage=message.lenght();
-    memcpy(aux, &sizemessage, sizeof(int16_t));
-    aux += sizeof(int16_t);
-
-    memcpy(aux, message.c_str(), message.lenght());
-
-    //Serializar los campos type, nick y message en el buffer _data
+    char* buffer = _data;
+    memcpy(buffer, &type, sizeof(uint8_t));
+    buffer += sizeof(uint8_t);
+    memcpy(buffer, nick.c_str(), sizeof(char)* 10);
+    buffer += sizeof(char) * 10;
+    memcpy(buffer, message.c_str(), sizeof(char) * 80);
 }
 
 int ChatMessage::from_bin(char * bobj)
 {
-    alloc_data(MESSAGE_SIZE);
-
-    memcpy(static_cast<void *>(_data), bobj, MESSAGE_SIZE);
-
+    alloc_data(MESSAGE_SIZE); 
+    memcpy(static_cast<void*>(_data), bobj, MESSAGE_SIZE); 
     //Reconstruir la clase usando el buffer _data
-    char *aux = _data;
+     char* buffer = _data; memcpy(&type, buffer, sizeof(uint8_t)); 
+     buffer += sizeof(uint8_t); char nick_buffer[10] = {0}; memcpy(nick_buffer, buffer, 10* sizeof(char)); nick = std::string(nick_buffer); buffer += 10* sizeof(char); char message_buffer[81] = {0}; memcpy(message_buffer, buffer, 80 * sizeof(char)); message = std::string(message_buffer); return 0;
 
-    memcpy(&type, aux, sizeof(uint8_t));
-    aux += sizeof(uint8_t);
-
-    int sizeofnick;
-    memcpy(&sizeofnick, aux, sizeof(int16_t));
-    aux += sizeof(int16_t);
-    //CON UN STRING SE PUEDE HACER ESTO
-    char* auxString=malloc(sizeofnick);
-    memcpy(&auxString, aux, sizeofnick);
-    nick = std::string(char_array);
-    aux += sizeofnick;
-    free(auxString);
-
-    int sizeofmessage;
-
-    memcpy(&sizeofmessage, aux, sizeof(int16_t));
-    aux+=sizeofmessage;
-    message = aux;
-    return 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -73,39 +40,49 @@ void ChatServer::do_messages()
          * crear un unique_ptr con el objeto socket recibido y usar std::move
          * para añadirlo al vector
          */
-        ChatMessage* mensaje=new ChatMessage();
+        ChatMessage mensaje;
         
-        //Recibir Mensajes en y en función del tipo de mensaje
-        Socket* socket_cliente;
+        //Recibir Mensajes en y en socketfunción del tipo de mensaje
+        Socket* socket_cliente=new Socket(socket);
         socket.recv(mensaje, socket_cliente);
-        // - LOGIN: Añadir al vector clients
+        // - LOGIN: Añadir al vectosocketr clients
         // - LOGOUT: Eliminar del vector clients
         // - MESSAGE: Reenviar el mensaje a todos los clientes (menos el emisor)
         switch(mensaje.type){
-            case LOGIN:
-            std::unique_ptr<Socket>socket_(socket_cliente);
-            clientes.push_back(std::move(socket_));
-            std::cout<<"LOGIN DE: "<<mensaje.nick<<"\n";
-            break;
-            case LOGOUT:
-            std::unique_ptr<Socket>socket_(socket_cliente);
-            for(auto it=clientes.begin();it!=clientes.end();){
-                if(*(*it)==*socket_cliente){
-                    clientes.erase(it);
+            case ChatMessage::LOGIN:{
+                std::unique_ptr<Socket>socket1_(socket_cliente);
+                clients.push_back(std::move(socket1_));
+                std::cout<<"LOGIN DE: "<<mensaje.nick<<"\n";
+                break;
+            }  
+            case ChatMessage::LOGOUT:{
+                std::unique_ptr<Socket>socket_(socket_cliente);
+                for(auto it=clients.begin();it!=clients.end();){
+                    if(*(*it)==*socket_cliente){
+                        clients.erase(it);
+                    }
+                    else ++it;
                 }
-                else ++it;
+                std::cout<<"LOGOUT DE: "<<mensaje.nick<<"\n";
+                break;
             }
-             std::cout<<"LOGOUT DE: "<<mensaje.nick<<"\n";
-            break;
-            case MESSAGE:
-             std::unique_ptr<Socket>socket_(socket_cliente);
-            for(auto it=clientes.begin();it!=clientes.end();){
-                if(*(*it)!=*socket_cliente){
-                   *(*it).send(mensaje, *(*it));
+               
+            case ChatMessage::MESSAGE:{
+                std::cout<<"mandando mensaje"<<std::endl;
+                //std::unique_ptr<Socket>socket_(socket_cliente);
+                for(auto it=clients.begin();it!=clients.end();){
+                    if(*(*it)==*socket_cliente){
+                        std::cout<<"no soy yo"<<std::endl;
+                    }
+                    else{
+                        socket.send(mensaje, *(*it));
+                        std::cout<<"enviando"<<std::endl;
+                    } 
+                ++it;
                 }
-               ++it;
+                break;
             }
-            break;
+             
         }
       
     }
@@ -155,10 +132,16 @@ void ChatClient::input_thread()
 
 void ChatClient::net_thread()
 {
+    ChatMessage message_;
+    Socket* sock_ = new Socket(socket);
     while(true)
     {
         //Recibir Mensajes de red
-        //Mostrar en pantalla el mensaje de la forma "nick: mensaje"
+        socket.recv(message_, sock_);
+
+        // Mostrar en pantalla el mensaje de la forma "nick: mensaje"
+        std::cout << message_.nick << ": " << message_.message << "\n";
+     
     }
 }
 

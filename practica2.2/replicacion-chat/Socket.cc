@@ -6,7 +6,25 @@
 Socket::Socket(const char * address, const char * port):sd(-1)
 {
     //Construir un socket de tipo AF_INET y SOCK_DGRAM usando getaddrinfo.
+    // translate name to socket addresses
+   
+    addrinfo hints; 
+    addrinfo *result;
+
+    memset(&hints, 0, sizeof(addrinfo));
+    
+    hints.ai_family   = AF_INET;    
+    hints.ai_socktype = SOCK_DGRAM; 
+    hints.ai_flags    = AI_PASSIVE; 
+   
+    int err = getaddrinfo(address, port, &hints, &result);
+    // open socket with result content. Always 0 to TCP and UDP
+    sd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     //Con el resultado inicializar los miembros sd, sa y sa_len de la clase
+    // associate address. Where is going to listen
+    sa = (struct sockaddr)*(result->ai_addr);
+    sa_len = (result->ai_addrlen);
+
 }
 
 int Socket::recv(Serializable &obj, Socket * &sock)
@@ -36,23 +54,19 @@ int Socket::recv(Serializable &obj, Socket * &sock)
 int Socket::send(Serializable& obj, const Socket& sock)
 {
     //Serializar el objeto
-    obj->to_bin()
+    obj.to_bin();
     
     //Enviar el objeto binario a sock usando el socket sd
-    return sendto(sd, obj->data, obj->size(), 0, (struct sockaddr *) &sock.sa, sock.sa_len);
+    return sendto(sd, obj.data(), obj.size(), 0, (struct sockaddr *) &sock.sa, sock.sa_len);
 }
 
 bool operator== (const Socket &s1, const Socket &s2)
 {
-    //Comparar los campos sin_family, sin_addr.s_addr y sin_port
-    //de la estructura sockaddr_in de los Sockets s1 y s2
-    //Retornar false si alguno difiere
-    sockaddr_in *socket1 = (sockaddr_in *)&(s1);
-    sockaddr_in *socket2 = (sockaddr_in *)&(s2);
-
-    return (socket1.sin_family == socket2.sin_family &&
-                    socket1.sin_addr == socket2.sin_addr &&
-                    socket1.sin_port == socket2.sin_port);
+     sockaddr_in* socket1 = (sockaddr_in*) &(s1.sa);
+    sockaddr_in* socket2 = (sockaddr_in*) &(s2.sa);
+    return socket1->sin_family == socket2->sin_family && 
+        socket1->sin_addr.s_addr == socket2->sin_addr.s_addr &&
+        socket1->sin_port == socket2->sin_port;
 
     
 };
